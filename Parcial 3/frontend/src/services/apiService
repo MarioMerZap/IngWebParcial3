@@ -1,0 +1,17 @@
+
+import axios from 'axios';
+
+const CLOUDINARY_URL = 'https://api.cloudinary.com/v1_1/dygacvfuj/upload';
+const UPLOAD_PRESET = 'https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.italia.it%2Fes%2Flacio%2Froma&psig=AOvVaw364W_z-2z05N_eDlEd1Ohy&ust=1734196101225000&source=images&cd=vfe&opi=89978449&ved=0CBQQjRxqFwoTCJC44oaepYoDFQAAAAAdAAAAABAE';
+
+export const uploadFileToCloudinary = async (file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', UPLOAD_PRESET);
+
+  const response = await axios.post(CLOUDINARY_URL, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+
+  return response.data.secure_url; // Devuelve la URL pública
+};
