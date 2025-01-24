@@ -1,4 +1,5 @@
 import axios from 'axios';
+const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 /**
  * Uploads a file to the Cloudinary microservice and returns the uploaded image URL.
@@ -16,7 +17,7 @@ export async function uploadFileToCloudinary(file) {
   formData.append('foto', file);
 
   try {
-    const response = await axios.post('http://localhost:5000/api/cloudinary/subirFoto', formData, {
+    const response = await axios.post(`${VITE_API_BASE_URL}/api/cloudinary/subirFoto`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -36,15 +37,13 @@ export async function uploadFileToCloudinary(file) {
 
 
 
-const API_URL = 'http://localhost:5000/api/markers';
-
 export const getUserMarkers = async (email) => {
-  const response = await axios.get(`${API_URL}/user-markers`, { params: { email } });
+  const response = await axios.get(`${VITE_API_BASE_URL}/api/markers/user-markers`, { params: { email } });
   return response.data;
 };
 
 export const addMarker = async (markerData) => {
-  const response = await axios.post(`${API_URL}/add-marker`, markerData);
+  const response = await axios.post(`${VITE_API_BASE_URL}/api/markers/add-marker`, markerData);
   return response.data;
 };
 
@@ -52,7 +51,7 @@ export const addMarker = async (markerData) => {
 
 export const logVisit = async (visitData) => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/visits`, visitData);
+    const response = await axios.post(`${VITE_API_BASE_URL}/api/visits`, visitData);
     return response.data;
   } catch (error) {
     console.error('Error logging visit:', error);
@@ -62,7 +61,7 @@ export const logVisit = async (visitData) => {
 
 export const getVisits = async (email) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/visits`, {
+    const response = await axios.get(`${VITE_API_BASE_URL}/api/visits`, {
       params: { email },
     });
     return response.data;
