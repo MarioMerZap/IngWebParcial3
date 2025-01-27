@@ -1,136 +1,224 @@
-<script setup>
-import { ref, onMounted } from 'vue';
-import L from 'leaflet'; // Importar Leaflet
-import 'leaflet/dist/leaflet.css';
-import { getUserMarkers, addMarker, logVisit, getVisits } from '@/services/uploadService';
+<template>
+  <div class="container mx-auto p-4">
+    <h1 class="text-3xl font-bold mb-4">Gestión de Películas y Salas</h1>
 
-const userEmail = 'user@example.com'; // Email del usuario autenticado
-const visitedEmail = ref(''); // Email del usuario cuyo mapa se quiere visitar
-const markers = ref([]);
-const map = ref(null);
-const visits = ref([]); // Lista de visitas
-const isViewingOwnMap = ref(true); // Para diferenciar si es el propio mapa o el de otro usuario
+    <!-- Login de Usuario -->
+    <div class="mb-8">
+      <h2 class="text-xl font-semibold mb-2">Login de Usuario</h2>
+      <form @submit.prevent="loginUser" class="space-y-4">
+        <div>
+          <label for="email" class="block text-sm font-medium">Email</label>
+          <input
+            id="email"
+            type="email"
+            v-model="user.email"
+            placeholder="Introduce tu email"
+            class="border border-gray-300 rounded w-full px-3 py-2"
+          />
+        </div>
+        <div>
+          <label for="password" class="block text-sm font-medium">Contraseña</label>
+          <input
+            id="password"
+            type="password"
+            v-model="user.password"
+            placeholder="Introduce tu contraseña"
+            class="border border-gray-300 rounded w-full px-3 py-2"
+          />
+        </div>
+        <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Login</button>
+      </form>
+      <div v-if="userLoggedIn" class="mt-4">
+        <p class="text-green-600">Usuario autenticado: {{ user.email }}</p>
+      </div>
+    </div>
 
-onMounted(async () => {
-  // Inicializar mapa
-  initializeMap();
+    <!-- Crear Película -->
+    <div class="mb-8">
+      <h2 class="text-xl font-semibold mb-2">Crear Película</h2>
+      <form @submit.prevent="createMovie" class="space-y-4">
+        <div>
+          <label for="movieTitle" class="block text-sm font-medium">Título</label>
+          <input
+            id="movieTitle"
+            type="text"
+            v-model="newMovie.title"
+            placeholder="Título de la película"
+            class="border border-gray-300 rounded w-full px-3 py-2"
+          />
+        </div>
+        <div>
+          <label for="moviePoster" class="block text-sm font-medium">Cartel</label>
+          <input
+            id="moviePoster"
+            type="file"
+            @change="handleFileUpload"
+            class="border border-gray-300 rounded w-full px-3 py-2"
+          />
+        </div>
 
-  // Cargar marcadores propios al inicio
-  await loadUserMap(userEmail);
-});
+        <!-- Mostrar URL del póster cargado -->
+        <div v-if="newMovie.posterUrl" class="mt-2">
+          <p class="text-sm text-gray-600">
+            URL del póster cargado: 
+            <a 
+              :href="newMovie.posterUrl" 
+              target="_blank" 
+              class="text-blue-500 underline"
+            >
+              {{ newMovie.posterUrl }}
+            </a>
+          </p>
+        </div>
 
-const initializeMap = () => {
-  map.value = L.map('map').setView([34, -43], 5);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap contributors',
-  }).addTo(map.value);
-};
+        <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Crear Película</button>
+      </form>
+    </div>
 
-const loadUserMap = async (email) => {
-  // Resetear estado del mapa
-  map.value.eachLayer((layer) => {
-    if (layer instanceof L.Marker || layer instanceof L.Circle) {
-      map.value.removeLayer(layer);
-    }
-  });
+    <!-- Buscar Película y Valorar -->
+    <div class="mb-8">
+      <h2 class="text-xl font-semibold mb-2">Buscar Película</h2>
+      <form @submit.prevent="searchMovie" class="space-y-4">
+        <div>
+          <label for="searchTitle" class="block text-sm font-medium">Título</label>
+          <input
+            id="searchTitle"
+            type="text"
+            v-model="searchTitle"
+            placeholder="Título de la película a buscar"
+            class="border border-gray-300 rounded w-full px-3 py-2"
+          />
+        </div>
+        <button type="submit" class="bg-purple-500 text-white px-4 py-2 rounded">Buscar Película</button>
+      </form>
+      <div v-if="searchResults && searchResults.length > 0" class="mt-4">
+        <h3 class="text-lg font-medium">Resultados de la búsqueda:</h3>
+        <ul>
+          <li v-for="result in searchResults" :key="result._id" class="border p-2 mb-2">
+            <p><strong>Título:</strong> {{ result.title }}</p>
+            <img :src="result.poster" alt="Cartel de la película" class="w-32 h-auto mt-2" />
+            <p><strong>Proyecciones:</strong></p>
+            <ul>
+              <li v-for="projection in result.projections" :key="projection.roomId">
+                Sala: {{ projection.roomName }}, Fecha: {{ new Date(projection.date).toLocaleString() }}
+              </li>
+            </ul>
+            <!-- Valorar película -->
+            <div v-if="userLoggedIn" class="mt-4">
+              <label for="rating" class="block text-sm font-medium">Valorar esta película</label>
+              <select v-model="ratings[result._id]" class="border border-gray-300 rounded w-full px-3 py-2">
+                <option disabled value="">Selecciona una valoración</option>
+                <option v-for="star in 5" :key="star" :value="star">{{ star }} estrellas</option>
+              </select>
+              <button @click="rateMovie(result._id)" class="bg-yellow-500 text-white px-4 py-2 rounded mt-2">
+                Enviar valoración
+              </button>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</template>
 
-  markers.value = [];
-  const userMarkers = await getUserMarkers(email);
-  userMarkers.forEach((marker) => {
-    addMapMarker(marker.location.lat, marker.location.lon, marker.location.city || marker.location.country);
-  });
+<script>
+import { uploadFileToCloudinary } from "@/services/uploadService";
+import axios from "axios";
 
-  // Si es un mapa ajeno, registrar visita
-  if (email !== userEmail) {
-    isViewingOwnMap.value = false;
-    const visitData = {
-      visitedEmail: email,
-      visitorEmail: userEmail,
-      token: 'sample-token', // Simulando un token
-      timestamp: new Date().toISOString(),
+
+export default {
+  name: "HomeView",
+  data() {
+    return {
+      user: {
+        email: "",
+        password: "",
+      },
+      userLoggedIn: false,
+      newMovie: {
+        title: "",
+        file: null,
+        posterUrl: "", // Nueva propiedad para almacenar la URL del póster
+      },
+      ratings: {}, // Almacena las valoraciones de las películas
+      searchTitle: "",
+      searchResults: [],
     };
-    await logVisit(visitData);
-    await loadVisits(email);
-  } else {
-    isViewingOwnMap.value = true;
-    await loadVisits(email);
-  }
-};
+  },
+  methods: {
+    loginUser() {
+      if (this.user.email && this.user.password) {
+        this.userLoggedIn = true;
+        alert("Inicio de sesión simulado con éxito.");
+      } else {
+        alert("Por favor, ingresa email y contraseña.");
+      }
+    },
+    async handleFileUpload(event) {
+      const file = event.target.files[0];
+      if (file) {
+        this.newMovie.file = file;
 
-const addMapMarker = (lat, lon, popupText) => {
-  L.marker([lat, lon]).addTo(map.value).bindPopup(popupText).openPopup();
-};
-
-const address = ref('');
-const addNewMarker = async () => {
-  if (!address.value.trim()) return alert('Please enter an address.');
-
-  const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address.value)}`);
-  const data = await response.json();
-  if (data.length === 0) return alert('No results found.');
-
-  const { lat, lon, display_name } = data[0];
-  addMapMarker(lat, lon, display_name);
-
-  // Guardar el marcador en la base de datos
-  await addMarker({
-    email: userEmail,
-    country: display_name,
-    city: '',
-    lat,
-    lon,
-  });
-};
-
-const loadVisits = async (email) => {
-  visits.value = await getVisits(email);
-};
-
-const visitOtherMap = async () => {
-  if (!visitedEmail.value.trim()) return alert('Please enter a valid email.');
-  await loadUserMap(visitedEmail.value);
+        try {
+          // Subimos el archivo a Cloudinary y almacenamos la URL
+          const posterUrl = await uploadFileToCloudinary(file);
+          this.newMovie.posterUrl = posterUrl;
+        } catch (error) {
+          console.error("Error cargando el archivo:", error);
+          alert("No se pudo cargar el archivo.");
+        }
+      }
+    },
+    async createMovie() {
+      try {
+        if (!this.newMovie.file) {
+          alert("Por favor, selecciona un archivo para el cartel.");
+          return;
+        }
+        const posterUrl = await uploadFileToCloudinary(this.newMovie.file);
+        await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/movies`, {
+          title: this.newMovie.title,
+          poster: posterUrl,
+        });
+        alert("Película creada con éxito.");
+        this.newMovie.title = "";
+        this.newMovie.file = null;
+      } catch (error) {
+        console.error("Error creando película:", error);
+        alert("No se pudo crear la película.");
+      }
+    },
+    async searchMovie() {
+      try {
+        const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/movies/search`, {
+          params: { title: this.searchTitle },
+        });
+        this.searchResults = response.data;
+      } catch (error) {
+        console.error("Error buscando película:", error);
+        alert("No se pudo realizar la búsqueda.");
+      }
+    },
+    async rateMovie(movieId) {
+      try {
+        if (!this.ratings[movieId]) {
+          alert("Por favor, selecciona una valoración.");
+          return;
+        }
+        await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/movies/${movieId}/rate`, {
+          rating: this.ratings[movieId],
+          user: this.user.email,
+        });
+        alert("Valoración enviada con éxito.");
+      } catch (error) {
+        console.error("Error enviando valoración:", error);
+        alert("No se pudo enviar la valoración.");
+      }
+    },
+  },
 };
 </script>
 
-<template>
-  <main class="bg-gray-100 min-h-screen p-4">
-    <div class="mb-8">
-      <!-- Formulario para buscar otros mapas -->
-      <div class="mb-6 bg-white p-4 rounded shadow">
-        <h2 class="text-xl font-semibold mb-4 text-gray-700">View Other User's Map</h2>
-        <input
-          v-model="visitedEmail"
-          placeholder="Enter email to view map"
-          class="p-2 border rounded w-full mb-4 focus:ring focus:ring-blue-200"
-        />
-        <button @click="visitOtherMap" class="p-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition">View Map</button>
-      </div>
-
-      <!-- Input para buscar direcciones (solo si es el propio mapa) -->
-      <div v-if="isViewingOwnMap" class="bg-white p-4 rounded shadow">
-        <h2 class="text-xl font-semibold mb-4 text-gray-700">Add Marker</h2>
-        <input v-model="address" placeholder="Enter an address" class="p-2 border rounded w-full mb-4 focus:ring focus:ring-blue-200" />
-        <button @click="addNewMarker" class="p-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition">Add Marker</button>
-      </div>
-    </div>
-
-    <!-- Mapa -->
-    <div id="map" class="rounded shadow" style="height: 500px; width: 100%;"></div>
-
-    <!-- Visitas -->
-    <div class="mt-8 bg-white p-4 rounded shadow">
-      <h3 class="text-xl font-semibold mb-4 text-gray-700">Visits</h3>
-      <ul>
-        <li
-          v-for="visit in visits"
-          :key="visit.timestamp"
-          class="border-b py-4 last:border-none"
-        >
-          <p><strong class="text-gray-600">Email:</strong> {{ visit.visitorEmail }}</p>
-          <p><strong class="text-gray-600">Timestamp:</strong> {{ new Date(visit.timestamp).toLocaleString() }}</p>
-          <p><strong class="text-gray-600">Token:</strong> {{ visit.token }}</p>
-        </li>
-      </ul>
-    </div>
-  </main>
-</template>
+<style>
+/* Agrega estilos si es necesario */
+</style>
