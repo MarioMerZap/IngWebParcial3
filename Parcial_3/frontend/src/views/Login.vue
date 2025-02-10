@@ -10,8 +10,7 @@
 export default {
   methods: {
     loginWithGoogle() {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL; // Obtener la URL del backend desde las variables de entorno
-      window.location.href = `${apiBaseUrl}/auth/google`; // Redirigir dinámicamente
+      window.location.href = `${import.meta.env.VITE_API_BASE_URL}/auth/google`; 
     }
   }
 };

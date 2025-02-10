@@ -1,23 +1,14 @@
 const express = require('express');
 const passport = require('passport');
-const jwt = require('jsonwebtoken');
 const router = express.Router();
 
+// Google OAuth Login
 router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
-router.get('/google/callback', 
-    passport.authenticate('google', { failureRedirect: '/' }), 
-    (req, res) => {
-        const token = jwt.sign({ id: req.user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-        res.redirect(`${process.env.VITE_URL}/auth?token=${token}`);
-    }
-);
-
-router.get('/logout', (req, res) => {
-    req.logout(err => {
-        if (err) return next(err);
-        res.redirect(process.env.FRONTEND_URL);
-    });
+// Callback después de autenticación con Google
+router.get('/google/callback', passport.authenticate('google', { session: false }), (req, res) => {
+    if (!req.user) return res.redirect(`${process.env.VITE_URL}/login?error=auth_failed`);
+    res.redirect(`${process.env.VITE_URL}/auth?token=${req.user.token}`);
 });
 
 module.exports = router;

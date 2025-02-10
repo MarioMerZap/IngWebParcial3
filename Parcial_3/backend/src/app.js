@@ -10,6 +10,8 @@ const userMarkerRoutes = require('./routes/userMarkers');
 const movieRouter = require('./routes/movieRouter');
 const roomRouter = require('./routes/roomRouter'); 
 
+messageRouter = require('./routes/messageRouter');
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -23,6 +25,8 @@ app.use('/api/markers', userMarkerRoutes);
 
 app.use('/api/movies', movieRouter);
 app.use('/api/room', roomRouter);
+
+app.use('/api/messages', messageRoutes);
 
 
 const projectionRouter = require("./routes/projectionRouter");
